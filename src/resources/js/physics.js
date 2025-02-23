@@ -2112,10 +2112,10 @@ function letAIDecideUserInput(player, ball, theOtherPlayer, userInput) {
                           ':normal fancy flat jump'
                       );
                     }
-                    const drop_rand = true_rand() % 10 < 7;
+                    let drop_second = false;
                     if (
                       testflag &&
-                      drop_rand &&
+                      true_rand() % 10 < 7 &&
                       direct === 2 &&
                       playerYpredictJump(player, frame + predictframe + 1) !==
                         244 &&
@@ -2152,6 +2152,7 @@ function letAIDecideUserInput(player, ball, theOtherPlayer, userInput) {
                           : -PLAYER_HALF_LENGTH + 9);
                       player.secondattack = frame + predictframe + 1;
                       player.secondjump = true;
+                      drop_second = true;
                       console.log(
                         (player.isPlayer2 ? '2' : '1') + ':normal fancy jump'
                       );
@@ -2255,7 +2256,7 @@ function letAIDecideUserInput(player, ball, theOtherPlayer, userInput) {
                       break;
                     }
                     if (
-                      (drop_rand || player.state > 0) &&
+                      (true_rand() % 10 < 6 || drop_second) &&
                       Math.abs(
                         predictball.y -
                           playerYpredict(player, frame + predictframe + 1)
@@ -2411,7 +2412,7 @@ function letAIDecideUserInput(player, ball, theOtherPlayer, userInput) {
                       }
                       if (
                         testflag &&
-                        (true_rand() % 10 < 7 || player.state > 0) &&
+                        true_rand() % 10 < 6 &&
                         samesideloss(
                           theOtherPlayer,
                           predict[predict.length - 1].x
