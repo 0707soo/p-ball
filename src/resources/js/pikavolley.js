@@ -74,6 +74,12 @@ export class PikachuVolleyball {
     this.scores = [0, 0];
     /** @type {number} winning score: if either one of the players reaches this score, game ends */
     this.winningScore = 15;
+    /** @type {string} game mode: classic, double */
+    this.gameMode = 'classic';
+    /** @type {number[]} frames left before respawning each ball in double ball mode */
+    this.doubleBallRespawnFrames = [0, 0];
+    /** @type {boolean[]} serve side to use when each double ball respawns */
+    this.doubleBallRespawnServeSides = [false, true];
 
     /** @type {boolean} Is the game ended? */
     this.gameEnded = false;
@@ -324,6 +330,10 @@ export class PikachuVolleyball {
       this.physics.player1.initializeForNewRound();
       this.physics.player2.initializeForNewRound();
       this.physics.ball.initializeForNewRound(this.isPlayer2Serve);
+      this.physics.balls[1].initializeForNewRound(!this.isPlayer2Serve);
+      this.physics.balls[1].active = this.gameMode === 'double';
+      this.doubleBallRespawnFrames = [0, 0];
+      this.doubleBallRespawnServeSides = [false, true];
       this.view.game.drawPlayersAndBall(this.physics);
 
       this.view.fadeInOut.setBlackAlphaTo(1); // set black screen
@@ -384,9 +394,14 @@ export class PikachuVolleyball {
       this.keyboardArray[0].powerHit =
         this.keyboardArray[0].powerHit || this.keyboardArray[1].powerHit;
     }
-    const isBallTouchingGround = this.physics.runEngineForNextFrame(
-      this.keyboardArray
-    );
+    const ballsTouchingGround =
+      this.gameMode === 'double'
+        ? this.physics.runEngineForNextFrameWithDoubleBalls(this.keyboardArray)
+        : [];
+    const isBallTouchingGround =
+      this.gameMode === 'double'
+        ? ballsTouchingGround.length > 0
+        : this.physics.runEngineForNextFrame(this.keyboardArray);
     if (!PlayerMove) {
       replaySaver.recordInputs(this.keyboardArray[0], this.keyboardArray[1]);
     }
@@ -409,7 +424,9 @@ export class PikachuVolleyball {
       return;
     }
 
-    if (
+    if (this.gameMode === 'double') {
+      this.processDoubleBallScoring(ballsTouchingGround);
+    } else if (
       isBallTouchingGround &&
       this._isPracticeMode === false &&
       this.roundEnded === false &&
@@ -443,11 +460,86 @@ export class PikachuVolleyball {
       this.roundEnded = true;
     }
 
+    if (this.gameMode === 'double') {
+      this.updateDoubleBallRespawns();
+    }
+
     if (this.roundEnded === true && this.gameEnded === false) {
       // if this is the last frame of this round, begin fade out
       if (this.slowMotionFramesLeft === 0) {
         this.view.fadeInOut.changeBlackAlphaBy(1 / 16); // fade out
         this.state = this.afterEndOfRound;
+      }
+    }
+  }
+
+
+  /**
+   * Process balls that touched ground in double ball mode.
+   * @param {{ball: Object, index: number}[]} ballsTouchingGround balls touching ground
+   */
+  processDoubleBallScoring(ballsTouchingGround) {
+    if (
+      this._isPracticeMode === true ||
+      this.gameEnded === true ||
+      ballsTouchingGround.length === 0
+    ) {
+      return;
+    }
+
+    for (const { ball, index } of ballsTouchingGround) {
+      if (ball.active === false) {
+        continue;
+      }
+      if (ball.punchEffectX < GROUND_HALF_WIDTH) {
+        this.scores[1] += 1;
+        this.doubleBallRespawnFrames[index] = Math.round(this.normalFPS * 2);
+        this.doubleBallRespawnServeSides[index] = true;
+      } else {
+        this.scores[0] += 1;
+        this.doubleBallRespawnFrames[index] = Math.round(this.normalFPS * 2);
+        this.doubleBallRespawnServeSides[index] = false;
+      }
+      ball.active = false;
+      ball.sound.ballTouchesGround = false;
+    }
+
+    this.view.game.drawScoresToScoreBoards(this.scores);
+    const winningScore = this.winningScore * 2;
+    if (this.scores[0] >= winningScore) {
+      this.gameEnded = true;
+      this.physics.player1.isWinner = true;
+      this.physics.player2.isWinner = false;
+      this.physics.player1.gameEnded = true;
+      this.physics.player2.gameEnded = true;
+    } else if (this.scores[1] >= winningScore) {
+      this.gameEnded = true;
+      this.physics.player1.isWinner = false;
+      this.physics.player2.isWinner = true;
+      this.physics.player1.gameEnded = true;
+      this.physics.player2.gameEnded = true;
+    }
+  }
+
+  /** Respawn inactive balls after a short delay in double ball mode. */
+  updateDoubleBallRespawns() {
+    if (this.gameMode !== 'double' || this.gameEnded === true) {
+      return;
+    }
+    const activeBalls = this.physics.balls.filter((ball) => ball.active !== false);
+    if (activeBalls.length === 0) {
+      this.doubleBallRespawnFrames[0] = 0;
+      this.physics.balls[0].initializeForNewRound(
+        this.doubleBallRespawnServeSides[0]
+      );
+    }
+    for (let i = 0; i < this.physics.balls.length; i++) {
+      const ball = this.physics.balls[i];
+      if (ball.active === false && this.doubleBallRespawnFrames[i] > 0) {
+        this.doubleBallRespawnFrames[i]--;
+        if (this.doubleBallRespawnFrames[i] === 0) {
+          ball.initializeForNewRound(this.doubleBallRespawnServeSides[i]);
+        }
       }
     }
   }
@@ -477,6 +569,10 @@ export class PikachuVolleyball {
       this.physics.player1.initializeForNewRound();
       this.physics.player2.initializeForNewRound();
       this.physics.ball.initializeForNewRound(this.isPlayer2Serve);
+      this.physics.balls[1].initializeForNewRound(!this.isPlayer2Serve);
+      this.physics.balls[1].active = this.gameMode === 'double';
+      this.doubleBallRespawnFrames = [0, 0];
+      this.doubleBallRespawnServeSides = [false, true];
       this.view.game.drawPlayersAndBall(this.physics);
     }
 
@@ -522,23 +618,25 @@ export class PikachuVolleyball {
         sound.chu = false;
       }
     }
-    const ball = this.physics.ball;
-    const sound = ball.sound;
-    let leftOrCenterOrRight = 0;
-    if (this.isStereoSound) {
-      if (ball.punchEffectX < GROUND_HALF_WIDTH) {
-        leftOrCenterOrRight = -1;
-      } else if (ball.punchEffectX > GROUND_HALF_WIDTH) {
-        leftOrCenterOrRight = 1;
+    const balls = this.physics.balls || [this.physics.ball];
+    for (const ball of balls) {
+      const sound = ball.sound;
+      let leftOrCenterOrRight = 0;
+      if (this.isStereoSound) {
+        if (ball.punchEffectX < GROUND_HALF_WIDTH) {
+          leftOrCenterOrRight = -1;
+        } else if (ball.punchEffectX > GROUND_HALF_WIDTH) {
+          leftOrCenterOrRight = 1;
+        }
       }
-    }
-    if (sound.powerHit === true) {
-      audio.sounds.powerHit.play(leftOrCenterOrRight);
-      sound.powerHit = false;
-    }
-    if (sound.ballTouchesGround === true) {
-      audio.sounds.ballTouchesGround.play(leftOrCenterOrRight);
-      sound.ballTouchesGround = false;
+      if (sound.powerHit === true) {
+        audio.sounds.powerHit.play(leftOrCenterOrRight);
+        sound.powerHit = false;
+      }
+      if (sound.ballTouchesGround === true) {
+        audio.sounds.ballTouchesGround.play(leftOrCenterOrRight);
+        sound.ballTouchesGround = false;
+      }
     }
   }
 

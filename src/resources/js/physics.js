@@ -84,6 +84,7 @@ export class PikaPhysics {
     this.player1 = new Player(false, isPlayer1Computer);
     this.player2 = new Player(true, isPlayer2Computer);
     this.ball = new Ball(false);
+    this.balls = [this.ball, new Ball(true)];
   }
 
   /**
@@ -93,13 +94,69 @@ export class PikaPhysics {
    * @return {boolean} Is ball touching ground?
    */
   runEngineForNextFrame(userInputArray) {
-    const isBallTouchingGournd = physicsEngine(
+    this.ball = this.balls[0];
+    const isBallTouchingGround = physicsEngine(
       this.player1,
       this.player2,
       this.ball,
       userInputArray
     );
-    return isBallTouchingGournd;
+    return isBallTouchingGround;
+  }
+
+  /**
+   * Run physics for double ball mode.
+   * @param {PikaUserInput[]} userInputArray user input array
+   * @return {{ball: Ball, index: number}[]} balls touching ground in this frame
+   */
+  runEngineForNextFrameWithDoubleBalls(userInputArray) {
+    const activeBalls = this.balls.filter((ball) => ball.active !== false);
+    for (const ball of activeBalls) {
+      processCollisionBetweenBallAndWorldAndSetBallPosition(ball);
+      calculateExpectedLandingPointXFor(ball);
+    }
+
+    for (let i = 0; i < 2; i++) {
+      const player = i === 0 ? this.player1 : this.player2;
+      const theOtherPlayer = i === 0 ? this.player2 : this.player1;
+      const targetBall = chooseMostDangerousBallFor(player, activeBalls);
+      if (targetBall) {
+        processPlayerMovementAndSetPlayerPosition(
+          player,
+          userInputArray[i],
+          theOtherPlayer,
+          targetBall
+        );
+      }
+    }
+
+    for (const ball of activeBalls) {
+      for (let i = 0; i < 2; i++) {
+        const player = i === 0 ? this.player1 : this.player2;
+        const isHappened = isCollisionBetweenBallAndPlayerHappened(
+          ball,
+          player.x,
+          player.y
+        );
+        if (isHappened === true) {
+          if (ball.isCollisionWithPlayerHappened[i] === false) {
+            processCollisionBetweenBallAndPlayer(
+              ball,
+              player.x,
+              userInputArray[i],
+              player.state
+            );
+            ball.isCollisionWithPlayerHappened[i] = true;
+          }
+        } else {
+          ball.isCollisionWithPlayerHappened[i] = false;
+        }
+      }
+    }
+
+    return activeBalls
+      .map((ball) => ({ ball, index: this.balls.indexOf(ball) }))
+      .filter(({ ball }) => ball.touchedGroundInLastFrame === true);
   }
 }
 
@@ -307,6 +364,9 @@ class Ball {
    * @param {boolean} isPlayer2Serve will player on the right side serve on this new round?
    */
   initializeForNewRound(isPlayer2Serve) {
+    this.active = true;
+    this.touchedGroundInLastFrame = false;
+    this.isCollisionWithPlayerHappened = [false, false];
     /** @type {number} x coord */
     this.x = 56; // 0x30    // initialized to 56 or 376
     if (isPlayer2Serve === true) {
@@ -402,7 +462,6 @@ function physicsEngine(player1, player2, ball, userInputArray) {
   // FUN_00403040
   // FUN_00406020
   // These two functions ommited above maybe participate in graphic drawing for a player
-  console.log(ball.x, ball.y, ball.xVelocity, ball.yVelocity);
   return isBallTouchingGround;
 }
 
@@ -432,6 +491,7 @@ function isCollisionBetweenBallAndPlayerHappened(ball, playerX, playerY) {
  * @return {boolean} Is ball touching ground?
  */
 function processCollisionBetweenBallAndWorldAndSetBallPosition(ball) {
+  ball.touchedGroundInLastFrame = false;
   // This is not part of this function in the original assembly code.
   // In the original assembly code, it is processed in other function (FUN_00402ee0)
   // But it is proper to process here.
@@ -513,6 +573,7 @@ function processCollisionBetweenBallAndWorldAndSetBallPosition(ball) {
     ball.y = BALL_TOUCHING_GROUND_Y_COORD;
     ball.punchEffectRadius = BALL_RADIUS;
     ball.punchEffectY = BALL_TOUCHING_GROUND_Y_COORD + BALL_RADIUS;
+    ball.touchedGroundInLastFrame = true;
     return true;
   }
   ball.y = futureBallY;
@@ -520,6 +581,35 @@ function processCollisionBetweenBallAndWorldAndSetBallPosition(ball) {
   ball.yVelocity += 1;
 
   return false;
+}
+
+
+/**
+ * Pick the active ball that needs this player's attention most urgently.
+ * @param {Player} player player
+ * @param {Ball[]} balls active balls
+ * @return {Ball|null} selected ball
+ */
+function chooseMostDangerousBallFor(player, balls) {
+  if (balls.length === 0) {
+    return null;
+  }
+  return balls.reduce((best, ball) => {
+    if (best === null) {
+      return ball;
+    }
+    const ballOnOwnSide = sameside(player, ball.expectedLandingPointX);
+    const bestOnOwnSide = sameside(player, best.expectedLandingPointX);
+    if (ballOnOwnSide !== bestOnOwnSide) {
+      return ballOnOwnSide ? ball : best;
+    }
+    const ballFrames = ball.path ? ball.path.length : 1000;
+    const bestFrames = best.path ? best.path.length : 1000;
+    if (ballFrames !== bestFrames) {
+      return ballFrames < bestFrames ? ball : best;
+    }
+    return ball.y > best.y ? ball : best;
+  }, null);
 }
 
 /**

@@ -340,6 +340,7 @@ export class GameView {
     this.player1 = playerSprites[0];
     this.player2 = playerSprites[1];
     this.ball = makeBallAnimatedSprites(textures);
+    this.ball2 = makeBallAnimatedSprites(textures);
     this.ballHyper = makeSpriteWithAnchorXY(
       textures,
       TEXTURES.BALL_HYPER,
@@ -369,6 +370,7 @@ export class GameView {
       forPlayer1: makeSpriteWithAnchorXY(textures, TEXTURES.SHADOW, 0.5, 0.5),
       forPlayer2: makeSpriteWithAnchorXY(textures, TEXTURES.SHADOW, 0.5, 0.5),
       forBall: makeSpriteWithAnchorXY(textures, TEXTURES.SHADOW, 0.5, 0.5),
+      forBall2: makeSpriteWithAnchorXY(textures, TEXTURES.SHADOW, 0.5, 0.5),
     };
 
     this.messages = {
@@ -404,11 +406,13 @@ export class GameView {
     this.container.addChild(this.shadows.forPlayer1);
     this.container.addChild(this.shadows.forPlayer2);
     this.container.addChild(this.shadows.forBall);
+    this.container.addChild(this.shadows.forBall2);
     this.container.addChild(this.player1);
     this.container.addChild(this.player2);
     this.container.addChild(this.ballTrail);
     this.container.addChild(this.ballHyper);
     this.container.addChild(this.ball);
+    this.container.addChild(this.ball2);
 
     // this.container.addChild(this.line);
     // for (let predictCount = 0; predictCount < 6; predictCount++) {
@@ -490,6 +494,7 @@ export class GameView {
     const player1 = physics.player1;
     const player2 = physics.player2;
     const ball = physics.ball;
+    const ball2 = physics.balls ? physics.balls[1] : null;
 
     this.player1.x = player1.x;
     this.player1.y = player1.y;
@@ -524,6 +529,17 @@ export class GameView {
     this.ball.y = ball.y;
     this.shadows.forBall.x = ball.x;
     this.ball.gotoAndStop(ball.rotation);
+    if (ball2 && ball2.active !== false) {
+      this.ball2.x = ball2.x;
+      this.ball2.y = ball2.y;
+      this.ball2.gotoAndStop(ball2.rotation);
+      this.ball2.visible = true;
+      this.shadows.forBall2.x = ball2.x;
+      this.shadows.forBall2.visible = true;
+    } else {
+      this.ball2.visible = false;
+      this.shadows.forBall2.visible = false;
+    }
 
     // this.shortX.x = ball.shortX - 20;
     // this.farX.x = ball.farX - 20;

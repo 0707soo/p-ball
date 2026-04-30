@@ -7,7 +7,7 @@ import { replaySaver } from './replay/replay_saver.js';
 
 /** @typedef {import('./pikavolley.js').PikachuVolleyball} PikachuVolleyball */
 /** @typedef {import('pixi.js-legacy').Ticker} Ticker */
-/** @typedef {{graphic?: string, bgm?: string, sfx?: string, speed?: string, winningScore?: string}} SharedOptions */
+/** @typedef {{graphic?: string, bgm?: string, sfx?: string, speed?: string, winningScore?: string, gameMode?: string}} SharedOptions */
 export var SkillTypeForPlayer1Available = [
   true,
   true,
@@ -75,6 +75,7 @@ const DEFAULT_SHARED_OPTIONS = {
   sfx: 'stereo',
   speed: 'fast',
   winningScore: '15',
+  gameMode: 'classic',
 };
 
 const SHARED_OPTION_BUTTON_GROUPS = {
@@ -87,6 +88,7 @@ const SHARED_OPTION_BUTTON_GROUPS = {
     'winning-score-10-btn',
     'winning-score-15-btn',
   ],
+  gameMode: ['classic-mode-btn', 'double-ball-mode-btn'],
 };
 
 const SHARED_OPTION_BUTTON_IDS = {
@@ -112,6 +114,10 @@ const SHARED_OPTION_BUTTON_IDS = {
     '5': 'winning-score-5-btn',
     '10': 'winning-score-10-btn',
     '15': 'winning-score-15-btn',
+  },
+  gameMode: {
+    classic: 'classic-mode-btn',
+    double: 'double-ball-mode-btn',
   },
 };
 
@@ -232,6 +238,12 @@ export function setUpUI(pikaVolley, ticker) {
         pikaVolley.winningScore = 15;
         break;
     }
+    switch (options.gameMode) {
+      case 'classic':
+      case 'double':
+        pikaVolley.gameMode = options.gameMode;
+        break;
+    }
   };
 
   /**
@@ -254,6 +266,9 @@ export function setUpUI(pikaVolley, ticker) {
     if (options.winningScore) {
       localStorage.setItem('pv-offline-winningScore', options.winningScore);
     }
+    if (options.gameMode) {
+      localStorage.setItem('pv-offline-gameMode', options.gameMode);
+    }
   };
 
   /**
@@ -272,6 +287,9 @@ export function setUpUI(pikaVolley, ticker) {
     winningScore:
       localStorage.getItem('pv-offline-winningScore') ||
       DEFAULT_SHARED_OPTIONS.winningScore,
+    gameMode:
+      localStorage.getItem('pv-offline-gameMode') ||
+      DEFAULT_SHARED_OPTIONS.gameMode,
   });
 
   /**
@@ -341,6 +359,15 @@ function setUpBtns(pikaVolley, ticker, applyAndSaveOptions) {
       pauseResumeManager.resume(pikaVolley, PauseResumePrecedence.pauseBtn);
     }
     pikaVolley.restart();
+  });
+
+  const classicModeBtn = document.getElementById('classic-mode-btn');
+  const doubleBallModeBtn = document.getElementById('double-ball-mode-btn');
+  classicModeBtn.addEventListener('click', () => {
+    applyAndSaveOptions({ gameMode: 'classic' });
+  });
+  doubleBallModeBtn.addEventListener('click', () => {
+    applyAndSaveOptions({ gameMode: 'double' });
   });
 
   const graphicSharpBtn = document.getElementById('graphic-sharp-btn');
@@ -646,6 +673,11 @@ function setUpToShowDropdownsAndSubmenus(pikaVolley) {
     });
   // set up to show submenus on mouseover event
   document
+    .getElementById('mode-submenu-btn')
+    .addEventListener('mouseover', () => {
+      showSubmenu('mode-submenu-btn', 'mode-submenu');
+    });
+  document
     .getElementById('graphic-submenu-btn')
     .addEventListener('mouseover', () => {
       showSubmenu('graphic-submenu-btn', 'graphic-submenu');
@@ -677,6 +709,11 @@ function setUpToShowDropdownsAndSubmenus(pikaVolley) {
     });
   // set up to show submenus on click event
   // (it is for touch device equipped with physical keyboard)
+  document
+    .getElementById('mode-submenu-btn')
+    .addEventListener('click', () => {
+      showSubmenu('mode-submenu-btn', 'mode-submenu');
+    });
   document
     .getElementById('graphic-submenu-btn')
     .addEventListener('click', () => {
