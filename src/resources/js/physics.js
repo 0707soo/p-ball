@@ -367,6 +367,8 @@ class Ball {
     this.active = true;
     this.touchedGroundInLastFrame = false;
     this.isCollisionWithPlayerHappened = [false, false];
+    /** @type {number} x coord where the ball most recently touched the ground */
+    this.groundTouchX = 0;
     /** @type {number} x coord */
     this.x = 56; // 0x30    // initialized to 56 or 376
     if (isPlayer2Serve === true) {
@@ -568,8 +570,13 @@ function processCollisionBetweenBallAndWorldAndSetBallPosition(ball) {
     // the omitted two functions maybe do a part of sound playback role.
     ball.sound.ballTouchesGround = true;
 
+    const framesUntilGround =
+      ball.yVelocity === 0
+        ? 0
+        : (BALL_TOUCHING_GROUND_Y_COORD - ball.y) / ball.yVelocity;
+    ball.groundTouchX = ball.x + ball.xVelocity * framesUntilGround;
     ball.yVelocity = -ball.yVelocity;
-    ball.punchEffectX = ball.x;
+    ball.punchEffectX = ball.groundTouchX;
     ball.y = BALL_TOUCHING_GROUND_Y_COORD;
     ball.punchEffectRadius = BALL_RADIUS;
     ball.punchEffectY = BALL_TOUCHING_GROUND_Y_COORD + BALL_RADIUS;

@@ -432,7 +432,7 @@ export class PikachuVolleyball {
       this.roundEnded === false &&
       this.gameEnded === false
     ) {
-      if (this.physics.ball.punchEffectX < GROUND_HALF_WIDTH) {
+      if (this.physics.ball.groundTouchX < GROUND_HALF_WIDTH) {
         this.isPlayer2Serve = true;
         this.scores[1] += 1;
         if (this.scores[1] >= this.winningScore) {
@@ -491,7 +491,7 @@ export class PikachuVolleyball {
       if (ball.active === false) {
         continue;
       }
-      if (ball.punchEffectX < GROUND_HALF_WIDTH) {
+      if (ball.groundTouchX < GROUND_HALF_WIDTH) {
         this.scores[1] += 1;
         this.doubleBallRespawnFrames[index] = Math.round(this.normalFPS * 2);
         this.doubleBallRespawnServeSides[index] = true;
@@ -623,7 +623,7 @@ export class PikachuVolleyball {
       const sound = ball.sound;
       let leftOrCenterOrRight = 0;
       if (this.isStereoSound) {
-        if (ball.punchEffectX < GROUND_HALF_WIDTH) {
+        if (ball.groundTouchX < GROUND_HALF_WIDTH) {
           leftOrCenterOrRight = -1;
         } else if (ball.punchEffectX > GROUND_HALF_WIDTH) {
           leftOrCenterOrRight = 1;
